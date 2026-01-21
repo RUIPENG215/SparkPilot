@@ -1,0 +1,23 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore dependencies
+node_modules/
+server/node_modules/
+
+# Ignore environment variables (Secrets)
+.env
+server/.env
+
+# Ignore IDE configuration
+.idea/
+.vscode/
+.trae/
+
+# Ignore logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log

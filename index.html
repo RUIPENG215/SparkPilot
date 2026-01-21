@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电子学习平台 | 从零开始点亮电子创意</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Marked.js -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Three.js (Optional for future 3D) -->
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+          },
+          colors: {
+            primary: '#0F172A', // Slate 900
+            accent: '#3B82F6', // Blue 500
+            accentHover: '#2563EB', // Blue 600
+          },
+          animation: {
+            'blob': 'blob 7s infinite',
+            'fade-in-up': 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'shimmer': 'shimmer 2.5s linear infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'float-delayed': 'float 6s ease-in-out 3s infinite',
+            'spin-slow': 'spin 12s linear infinite',
+          },
+          keyframes: {
+            blob: {
+              '0%': { transform: 'translate(0px, 0px) scale(1)' },
+              '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+              '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+              '100%': { transform: 'translate(0px, 0px) scale(1)' },
+            },
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-1000px 0' },
+              '100%': { backgroundPosition: '1000px 0' }
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-20px)' },
+            }
+          },
+          backgroundImage: {
+            'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+            'hero-glow': 'conic-gradient(from 180deg at 50% 50%, #2a8af6 0deg, #a853ba 180deg, #e92a67 360deg)',
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-balance { text-wrap: balance; }
+      
+
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Smooth Page Transitions */
+    .page {
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .page.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Animated Background Mesh */
+    .mesh-bg {
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(at 0% 0%, hsla(253,16%,7%,0) 0, hsla(253,16%,7%,0) 50%), 
+        radial-gradient(at 50% 0%, hsla(225,39%,30%,0) 0, hsla(225,39%,30%,0) 50%), 
+        radial-gradient(at 100% 0%, hsla(339,49%,30%,0) 0, hsla(339,49%,30%,0) 50%);
+    }
+
+    /* 3D Tilt Effect CSS */
+    .tilt-card {
+      transform-style: preserve-3d;
+      transform: perspective(1000px);
+    }
+    .tilt-content {
+      transform: translateZ(20px);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
+
+  <!-- Dynamic Background Elements -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+    <!-- Animated Blobs -->
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+    <div class="absolute top-0 right-1/4 w-96 h-96 bg-purple-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" style="animation-delay: 2s"></div>
+    <div class="absolute -bottom-32 left-1/3 w-96 h-96 bg-indigo-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" style="animation-delay: 4s"></div>
+    
+    <!-- Grid Pattern overlay -->
+    <div class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 w-full z-50 transition-all duration-300" id="navbar">
+    <div id="navbar-wrapper" class="mx-auto py-4 transition-all duration-1000 ease-in-out max-w-7xl px-6">
+      <div id="navbar-container" class="bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-2xl px-6 py-3 flex justify-between items-center w-full transition-all duration-1000 ease-in-out">
+        <!-- Logo -->
+        <div class="flex items-center gap-3 cursor-pointer group" onclick="showPage('home-page')">
+          <div class="relative w-10 h-10">
+            <div class="absolute inset-0 bg-blue-600 rounded-xl rotate-6 opacity-20 group-hover:rotate-12 transition-transform"></div>
+            <div class="absolute inset-0 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
+              <i class="fa-solid fa-bolt text-lg"></i>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-lg font-bold font-display tracking-tight leading-none">Spark<span class="text-blue-600">Pilot</span></span>
+            <span class="text-[10px] text-slate-500 font-medium tracking-widest uppercase">Creative Lab</span>
+          </div>
+        </div>
+
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 backdrop-blur-sm">
+          <button onclick="showPage('home-page')" class="nav-link px-5 py-2 text-sm font-medium text-slate-600 rounded-lg transition-all hover:text-blue-600 hover:bg-white hover:shadow-sm relative" data-page="home-page">
+            首页
+          </button>
+          <button onclick="showPage('schematic-page')" class="nav-link px-5 py-2 text-sm font-medium text-slate-600 rounded-lg transition-all hover:text-blue-600 hover:bg-white hover:shadow-sm" data-page="schematic-page">
+            原理图绘制
+          </button>
+          <button onclick="showPage('ar-page')" class="nav-link px-5 py-2 text-sm font-medium text-slate-600 rounded-lg transition-all hover:text-blue-600 hover:bg-white hover:shadow-sm" data-page="ar-page">
+            AR 焊接助手
+          </button>
+        </div>
+
+        <!-- Right Actions -->
+        <div class="hidden md:flex items-center gap-4">
+          <div class="h-6 w-px bg-slate-200"></div>
+          <button class="text-slate-500 hover:text-slate-900 transition-colors"><i class="fa-brands fa-github text-lg"></i></button>
+          <button class="bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2">
+            <span>登录</span> <i class="fa-solid fa-arrow-right text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu-btn" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+          <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="hidden md:hidden absolute top-full left-0 w-full p-4 transform origin-top animate-fade-in-up">
+      <div class="glass rounded-2xl p-4 flex flex-col gap-2 shadow-2xl">
+        <a href="#" class="p-4 rounded-xl hover:bg-blue-50 text-slate-700 font-medium flex items-center gap-3" onclick="showPage('home-page')">
+          <i class="fa-solid fa-home text-blue-500"></i> 首页
+        </a>
+        <a href="#" class="p-4 rounded-xl hover:bg-blue-50 text-slate-700 font-medium flex items-center gap-3" onclick="showPage('schematic-page')">
+          <i class="fa-solid fa-pen-ruler text-purple-500"></i> 原理图绘制
+        </a>
+        <a href="#" class="p-4 rounded-xl hover:bg-blue-50 text-slate-700 font-medium flex items-center gap-3" onclick="showPage('ar-page')">
+          <i class="fa-solid fa-vr-cardboard text-indigo-500"></i> AR 焊接助手
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="pt-32 min-h-screen">
+    
+    <!-- ================= HOME PAGE ================= -->
+    <section id="home-page" class="page active">
+      <div class="max-w-7xl mx-auto px-6 pb-20 mt-11">
+        
+        <!-- Hero Section -->
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-20 mb-32 relative">
+          
+          <!-- Text Content -->
+          <div class="w-full lg:w-1/2 space-y-8 z-10">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/80 border border-blue-100 text-blue-600 text-sm font-semibold backdrop-blur-sm animate-fade-in-up" style="animation-delay: 0.1s;">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              V2.0 全新发布
+            </div>
+            
+            <h1 class="text-5xl lg:text-7xl font-bold font-display leading-[1.1] tracking-tight text-slate-900 animate-fade-in-up" style="animation-delay: 0.2s;">
+              让电子设计 <br>
+              <span class="text-gradient">触手可及</span>
+            </h1>
+            
+            <p class="text-lg text-slate-600 leading-relaxed max-w-xl text-balance animate-fade-in-up" style="animation-delay: 0.3s;">
+              专为初学者和电子爱好者打造。集成专业电路设计引擎与智能辅助系统，从原理图绘制到AR焊接指导，让电子制作变得前所未有的简单。
+            </p>
+            
+            <div class="flex flex-wrap gap-4 pt-4 animate-fade-in-up" style="animation-delay: 0.4s;">
+              <button onclick="showPage('schematic-page')" class="group relative px-8 py-4 bg-slate-900 text-white rounded-2xl font-medium overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:-translate-y-1">
+                <div class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                <div class="flex items-center gap-3">
+                  <span>开始设计</span>
+                  <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                </div>
+              </button>
+              
+              <button onclick="showPage('ar-page')" class="px-8 py-4 bg-white text-slate-900 border border-slate-200 rounded-2xl font-medium hover:bg-slate-50 hover:border-slate-300 transition-all duration-300 flex items-center gap-3 shadow-lg shadow-slate-200/50 hover:-translate-y-1">
+                <i class="fa-solid fa-play text-blue-500"></i>
+                <span>AR辅助焊接</span>
+              </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-8 pt-8 border-t border-slate-200/60 animate-fade-in-up" style="animation-delay: 0.5s;">
+              <div>
+                <div class="text-3xl font-bold font-display text-slate-900">专业 EDA</div>
+                <div class="text-sm text-slate-500 font-medium">工业级工具</div>
+              </div>
+              <div>
+                <div class="text-3xl font-bold font-display text-slate-900">0 门槛</div>
+                <div class="text-sm text-slate-500 font-medium">轻松上手</div>
+              </div>
+              <div>
+                <div class="text-3xl font-bold font-display text-slate-900">AI智能体</div>
+                <div class="text-sm text-slate-500 font-medium">设计辅助</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Hero Visual (Interactive 3D Card) -->
+          <div class="w-full lg:w-1/2 perspective-1000 animate-fade-in-up" style="animation-delay: 0.4s;">
+            <div id="hero-card" class="relative w-full aspect-[4/3] transition-transform duration-100 ease-out transform-style-3d group cursor-pointer">
+              <!-- Glow Effect -->
+              <div class="absolute -inset-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-[2rem] blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+              
+              <!-- Main Card -->
+              <div class="absolute inset-0 bg-white/80 backdrop-blur-xl border border-white/50 rounded-3xl shadow-2xl overflow-hidden transform-style-3d">
+                <div class="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent z-10 pointer-events-none"></div>
+                
+                <!-- Inner UI Mockup -->
+                <div class="relative h-full w-full bg-slate-50 p-6 flex flex-col transform-style-3d">
+                  <!-- Header Mockup -->
+                  <div class="flex items-center justify-between mb-6 transform translate-z-10">
+                    <div class="flex gap-2">
+                      <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                      <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                      <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                    </div>
+                    <div class="h-2 w-20 bg-slate-200 rounded-full"></div>
+                  </div>
+                  
+                  <!-- Content Mockup -->
+                  <div class="flex-1 grid grid-cols-12 gap-4">
+                    <div class="col-span-3 bg-white rounded-xl shadow-sm border border-slate-100 p-3 space-y-2 transform translate-z-20">
+                      <div class="w-8 h-8 rounded-lg bg-blue-100 mb-4 animate-pulse"></div>
+                      <div class="h-2 w-full bg-slate-100 rounded"></div>
+                      <div class="h-2 w-2/3 bg-slate-100 rounded"></div>
+                    </div>
+                    <div class="col-span-9 bg-slate-900 rounded-xl shadow-inner relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500 transform translate-z-30 border border-slate-800">
+                      <!-- Circuit Lines Animation -->
+                      <svg class="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 400 300">
+                        <path d="M50 150 H 150 V 50 H 250" fill="none" stroke="#3B82F6" stroke-width="2" class="animate-[dash_3s_linear_infinite]" stroke-dasharray="10 10"/>
+                        <circle cx="250" cy="50" r="4" fill="#3B82F6" class="animate-pulse"/>
+                      </svg>
+                      
+                      <!-- Floating Elements -->
+                      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                        <div class="w-16 h-16 bg-blue-500 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.5)] animate-float">
+                          <i class="fa-solid fa-microchip text-white text-3xl"></i>
+                        </div>
+                        <div class="bg-slate-800/80 backdrop-blur px-3 py-1 rounded-full text-xs text-blue-200 border border-blue-500/30 animate-float-delayed">
+                          System Active
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Floating Badge -->
+              <div class="absolute -right-6 top-20 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 transform translate-z-40 animate-float-delayed">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fa-solid fa-check text-green-600"></i>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500 font-bold uppercase">Status</div>
+                    <div class="text-sm font-bold text-slate-800">Connected</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="mb-24">
+          <div class="text-center mb-16 max-w-2xl mx-auto">
+            <h2 class="text-3xl font-bold font-display text-slate-900 mb-4">为什么选择我们?</h2>
+            <p class="text-slate-500">打破传统教学壁垒，将工业级工具与现代化教学理念完美融合。</p>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Feature 1 -->
+            <div class="bg-white/60 backdrop-blur-lg border border-white/40 shadow-xl transition-all duration-500 p-8 rounded-3xl hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.3)] hover:border-blue-400/50 group cursor-pointer" onclick="showPage('schematic-page')">
+              <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 text-white text-2xl shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-300">
+                <i class="fa-solid fa-bezier-curve"></i>
+              </div>
+              <h3 class="text-xl font-bold text-slate-900 mb-3">集成 LC EDA</h3>
+              <p class="text-slate-600 leading-relaxed text-sm">
+                内置立创 EDA，无需安装繁琐软件。界面简洁直观，专为初学者优化，打开浏览器就能画出你的第一块电路板。
+              </p>
+            </div>
+            
+            <!-- Feature 2 -->
+            <div class="bg-white/60 backdrop-blur-lg border border-white/40 shadow-xl transition-all duration-500 p-8 rounded-3xl hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.3)] hover:border-blue-400/50 group cursor-pointer" onclick="showPage('ar-page')">
+              <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 text-white text-2xl shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-300">
+                <i class="fa-solid fa-glasses"></i>
+              </div>
+              <h3 class="text-xl font-bold text-slate-900 mb-3">AR 互动焊接</h3>
+              <p class="text-slate-600 leading-relaxed text-sm">
+                看不懂复杂的装配图？AR 技术将元器件位置直接投射在 PCB 上，像玩游戏一样轻松完成焊接。
+              </p>
+            </div>
+            
+            <!-- Feature 3 -->
+            <div class="bg-white/60 backdrop-blur-lg border border-white/40 shadow-xl transition-all duration-500 p-8 rounded-3xl hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.3)] hover:border-blue-400/50 group cursor-pointer">
+              <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-white text-2xl shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
+                <i class="fa-solid fa-robot"></i>
+              </div>
+              <h3 class="text-xl font-bold text-slate-900 mb-3">PCB 智能助手</h3>
+              <p class="text-slate-600 leading-relaxed text-sm">
+                搭载 PCB Design Agent (智能体)，实时解答布线疑惑。不懂原理图也没关系，AI 告诉你每根线该怎么连。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Demo Section -->
+        <div class="bg-slate-900 rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden group border border-slate-800 shadow-2xl">
+          <!-- Background Effects -->
+          <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+          <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
+          
+          <div class="relative z-10 flex flex-col md:flex-row items-center gap-12">
+            <div class="w-full md:w-1/2 space-y-8">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs font-medium tracking-wide">
+                <i class="fa-solid fa-sparkles text-yellow-400"></i> AI POWERED
+              </div>
+              <h2 class="text-4xl md:text-5xl font-bold font-display leading-tight">
+                你的私人 <br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">电路设计专家</span>
+              </h2>
+              <p class="text-slate-300 text-lg leading-relaxed">
+                不仅仅是简单的问答。我们的 AI 深度集成在编辑器中，能够理解您的电路拓扑结构，主动预警潜在的电气风险。
+              </p>
+              
+              <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors cursor-default">
+                  <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <i class="fa-solid fa-check"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-bold">ERC 规则检查</h4>
+                    <p class="text-sm text-slate-400">自动检测悬空引脚和短路风险</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors cursor-default">
+                  <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+                    <i class="fa-solid fa-tags"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-bold">BOM 成本优化</h4>
+                    <p class="text-sm text-slate-400">基于实时市场数据推荐性价比方案</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="w-full md:w-1/2">
+              <!-- Chat UI -->
+              <div class="bg-slate-950/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-2xl">
+                <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+                  <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="font-medium">AI Assistant</span>
+                  </div>
+                  <i class="fa-solid fa-ellipsis text-slate-500"></i>
+                </div>
+                
+                <div class="space-y-6 mb-6">
+                  <!-- AI Msg -->
+                  <div class="flex gap-4">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-white/10 p-4 rounded-2xl rounded-tl-none text-sm text-slate-200 leading-relaxed border border-white/5">
+                      检测到您的电源模块输出端缺少滤波电容。建议在 VCC 与 GND 之间添加一个 0.1μF 的陶瓷电容以滤除高频噪声。
+                    </div>
+                  </div>
+                  
+                  <!-- User Msg -->
+                  <div class="flex gap-4 flex-row-reverse">
+                    <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                      <i class="fa-solid fa-user text-xs"></i>
+                    </div>
+                    <div class="bg-blue-600 p-4 rounded-2xl rounded-tr-none text-sm text-white leading-relaxed shadow-lg">
+                      好的，请帮我自动添加并重新布线。
+                    </div>
+                  </div>
+                  
+                   <!-- AI Typing -->
+                   <div class="flex gap-4">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-white/5 px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                      <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                      <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="relative">
+                  <input type="text" placeholder="输入您的指令..." class="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50 transition-colors">
+                  <button class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white hover:bg-blue-500 transition-colors">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= SCHEMATIC PAGE ================= -->
+    <section id="schematic-page" class="page">
+      <div class="w-full px-4 py-4 -mt-8 h-[calc(100vh-5rem)] mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
+          
+          <!-- Left: Editor Area -->
+          <div class="lg:col-span-9 flex flex-col gap-2 h-full animate-fade-in-up">
+            <!-- Editor Iframe -->
+            <div class="flex-1 bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 relative group">
+              <iframe 
+                src="https://pro.lceda.cn/editor" 
+                class="w-full h-full border-0 bg-slate-50" 
+                title="Schematic Editor"
+                allowfullscreen
+              ></iframe>
+              
+              <!-- Floating Loading State -->
+              <div class="absolute inset-0 bg-slate-50/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 opacity-0 pointer-events-none transition-opacity duration-300" id="editor-loader">
+                <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-slate-500 font-medium">正在加载 EDA 引擎...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: AI Copilot -->
+          <div class="lg:col-span-3 h-full flex flex-col gap-4 animate-fade-in-up" style="animation-delay: 0.1s;">
+              <div class="bg-white/60 backdrop-blur-lg border border-white/40 shadow-xl transition-all duration-500 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 flex flex-col h-full overflow-hidden ring-1 ring-slate-900/5 backdrop-blur-xl bg-white/80">
+                <!-- Header -->
+                <div class="p-4 bg-white/50 backdrop-blur-md border-b border-white/50 flex items-center justify-between z-10">
+                  <h3 class="font-bold text-slate-700 flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                      <i class="fa-solid fa-microchip text-xs"></i>
+                    </div>
+                    <span class="text-sm font-display tracking-tight">PCB Design AI</span>
+                  </h3>
+                  <div class="flex items-center gap-2">
+                    <span class="flex h-2 w-2 relative">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span class="text-xs font-medium text-slate-500">Online</span>
+                  </div>
+                </div>
+                
+                <!-- Chat Area -->
+                <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30 scroll-smooth relative">
+                  <!-- Background Pattern (CSS Dot Grid) -->
+                <div class="absolute inset-0 opacity-[0.08] pointer-events-none" 
+                     style="background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px); background-size: 20px 20px;">
+                </div>
+                  
+                  <div class="flex gap-3 animate-fade-in-up relative z-10">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-white border border-white/60 flex items-center justify-center shadow-sm text-blue-600 flex-shrink-0">
+                      <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-white/80 backdrop-blur-sm p-3 rounded-2xl rounded-tl-none shadow-sm border border-white/50 text-sm text-slate-600">
+                      👋 嗨！我是您的专属 PCB 设计助手。关于原理图绘制、元器件选型或布线规则，随时问我！
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Input Area -->
+              <div class="p-4 bg-white/60 backdrop-blur-md border-t border-white/50 z-10">
+                <div class="relative group">
+                  <input type="text" id="ai-chat-input" placeholder="输入问题或上传图片..." class="w-full bg-white/50 border border-white/60 rounded-xl py-3 pl-4 pr-32 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all backdrop-blur-sm shadow-inner placeholder-slate-400">
+                  <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button class="w-8 h-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg flex items-center justify-center transition-all" title="上传图片">
+                      <i class="fa-regular fa-image"></i>
+                    </button>
+                    <button class="w-8 h-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg flex items-center justify-center transition-all" title="上传文件">
+                      <i class="fa-solid fa-paperclip"></i>
+                    </button>
+                    <button onclick="sendChatMessage()" class="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg flex items-center justify-center hover:shadow-lg hover:shadow-blue-500/30 transition-all shadow-md group-focus-within:scale-105">
+                      <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= AR PAGE ================= -->
+    <section id="ar-page" class="page">
+      <div class="max-w-7xl mx-auto px-6 py-8 -mt-10">
+        <!-- Main AR Card with Side-by-Side Layout -->
+        <div class="glass-card rounded-[2rem] overflow-hidden relative animate-fade-in-up flex flex-col lg:flex-row h-[calc(100vh-8rem)]">
+          
+          <!-- Left: AR Viewport (3/4 width) -->
+          <div class="relative w-full lg:w-3/4 bg-slate-900 h-full group">
+            <!-- Header Overlay -->
+            <div class="absolute top-0 left-0 w-full p-6 z-20 flex justify-between items-start pointer-events-none">
+              <div class="bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/50 pointer-events-auto flex items-center gap-3">
+                <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-red-500/30">
+                  <i class="fa-solid fa-video"></i>
+                </div>
+                <div>
+                  <h2 class="font-bold text-slate-800 text-sm">AR 焊接助手</h2>
+                  <div class="text-[10px] text-slate-500 font-mono">LIVE PREVIEW</div>
+                </div>
+              </div>
+              <div class="bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg pointer-events-auto text-white text-sm cursor-pointer hover:bg-slate-800 transition-colors border border-white/10">
+                <i class="fa-solid fa-gear mr-2"></i>设置
+              </div>
+            </div>
+
+            <!-- Grid Overlay -->
+            <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+            
+            <!-- Scanning Line Animation -->
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/10 to-transparent h-[20%] w-full animate-[scan_3s_linear_infinite] pointer-events-none border-b border-blue-500/30"></div>
+            
+            <!-- Central Content -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center z-10 p-8">
+              <div class="w-24 h-24 bg-white/5 backdrop-blur rounded-full flex items-center justify-center border border-white/10 mb-6 group-hover:scale-110 transition-transform duration-500">
+                <i class="fa-solid fa-cube text-4xl text-white/80"></i>
+              </div>
+              <h3 class="text-3xl font-bold text-white mb-3">准备就绪</h3>
+              <p class="text-slate-400 mb-8 max-w-md text-center">
+                请确保环境光线充足，并将 PCB 板置于桌面中央。AI Agent 将自动识别板载标记。
+              </p>
+              <button onclick="window.location.href='pcb-soldering-assistant.html'" class="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.5)] hover:shadow-[0_0_50px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-1 flex items-center gap-2">
+                <i class="fa-solid fa-power-off"></i> 启动 AR 引擎
+              </button>
+            </div>
+
+            <!-- Corner Markers -->
+            <div class="absolute top-8 left-8 w-16 h-16 border-t-2 border-l-2 border-white/20 rounded-tl-2xl"></div>
+            <div class="absolute top-8 right-8 w-16 h-16 border-t-2 border-r-2 border-white/20 rounded-tr-2xl"></div>
+            <div class="absolute bottom-8 left-8 w-16 h-16 border-b-2 border-l-2 border-white/20 rounded-bl-2xl"></div>
+            <div class="absolute bottom-8 right-8 w-16 h-16 border-b-2 border-r-2 border-white/20 rounded-br-2xl"></div>
+          </div>
+          
+          <!-- Right: Steps Sidebar (1/4 width) -->
+          <div class="w-full lg:w-1/4 bg-white border-l border-slate-100 p-6 flex flex-col overflow-y-auto">
+            <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-blue-500"></i> 准备步骤
+            </h3>
+            
+            <div class="flex flex-col gap-4 flex-1">
+              <div class="flex gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 group hover:border-blue-200 transition-colors">
+                <div class="w-10 h-10 rounded-xl bg-white text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">1</div>
+                <div>
+                  <h4 class="font-bold text-slate-800 mb-1 text-sm">环境准备</h4>
+                  <p class="text-xs text-slate-500 leading-relaxed">固定 PCB 板，清理桌面杂物，确保视野开阔。</p>
+                </div>
+              </div>
+              
+              <div class="flex gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 group hover:border-blue-200 transition-colors">
+                <div class="w-10 h-10 rounded-xl bg-white text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">2</div>
+                <div>
+                  <h4 class="font-bold text-slate-800 mb-1 text-sm">视觉定位</h4>
+                  <p class="text-xs text-slate-500 leading-relaxed">扫描 Hiro 标记，锁定坐标系，校准误差。</p>
+                </div>
+              </div>
+              
+              <div class="flex gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 group hover:border-blue-200 transition-colors">
+                <div class="w-10 h-10 rounded-xl bg-white text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">3</div>
+                <div>
+                  <h4 class="font-bold text-slate-800 mb-1 text-sm">实时引导</h4>
+                  <p class="text-xs text-slate-500 leading-relaxed">跟随 3D 箭头完成焊接，Agent 实时纠错。</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Helper Box -->
+            <div class="mt-6 pt-6 border-t border-slate-100">
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-100/50">
+                <div class="flex items-start gap-3">
+                  <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="fa-solid fa-lightbulb text-xs"></i>
+                  </div>
+                  <div>
+                    <h5 class="font-bold text-blue-900 text-xs mb-1">小贴士</h5>
+                    <p class="text-xs text-blue-700/80 leading-relaxed">
+                      遇到识别问题？尝试调整环境光线或重新打印 Hiro 标记卡片。保持摄像头距离 PCB 约 20-30cm 效果最佳。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 bg-white/50 backdrop-blur-sm mt-12">
+    <div class="container mx-auto px-6 py-12">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div>
+            <div class="font-bold text-slate-900">SparkPilot</div>
+            <div class="text-xs text-slate-500">© 2025 All rights reserved.</div>
+          </div>
+        </div>
+        
+        <div class="flex gap-8 text-sm font-medium text-slate-600">
+          <a href="#" class="hover:text-blue-600 transition-colors">关于我们</a>
+          <a href="#" class="hover:text-blue-600 transition-colors">使用文档</a>
+          <a href="#" class="hover:text-blue-600 transition-colors">隐私政策</a>
+        </div>
+
+        <div class="flex gap-4">
+          <a href="#" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all"><i class="fa-brands fa-github"></i></a>
+          <a href="#" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all"><i class="fa-brands fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // --- 3D Tilt Effect Logic ---
+    const card = document.getElementById('hero-card');
+    if(card) {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const rotateX = ((y - centerY) / centerY) * -10; // Max rotation deg
+        const rotateY = ((x - centerX) / centerX) * 10;
+        
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+      });
+      
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+      });
+    }
+
+    // --- Page Navigation ---
+    function showPage(pageId) {
+      // Navbar Width Adjustment
+      const navbarWrapper = document.getElementById('navbar-wrapper');
+      
+      if (pageId === 'schematic-page') {
+        // Expand for Schematic Page
+        navbarWrapper.classList.remove('max-w-7xl', 'px-6');
+        navbarWrapper.classList.add('max-w-full', 'px-4');
+
+        // Lazy load iframe
+        const iframe = document.getElementById('eda-iframe');
+        if(iframe && !iframe.src && iframe.dataset.src) {
+           iframe.src = iframe.dataset.src;
+           // Show loader
+           const loader = document.getElementById('editor-loader');
+           if(loader) loader.style.opacity = '1';
+           
+           // Hide loader on load
+           iframe.onload = () => {
+             if(loader) loader.style.opacity = '0';
+           };
+        }
+
+      } else {
+        // Default for Home and other pages
+        navbarWrapper.classList.remove('max-w-full', 'px-4');
+        navbarWrapper.classList.add('max-w-7xl', 'px-6');
+      }
+
+      // Nav Active State
+      document.querySelectorAll('.nav-link').forEach(link => {
+        if(link.dataset.page === pageId) {
+          link.classList.add('text-blue-600', 'bg-white', 'shadow-sm');
+          link.classList.remove('text-slate-600');
+        } else {
+          link.classList.remove('text-blue-600', 'bg-white', 'shadow-sm');
+          link.classList.add('text-slate-600');
+        }
+      });
+
+      // Page Transition
+      const currentActive = document.querySelector('.page.active');
+      
+      // Safety: If no page is active, show the target immediately
+      if (!currentActive) {
+        const nextPage = document.getElementById(pageId);
+        if(nextPage) {
+          nextPage.classList.add('active');
+          nextPage.style.opacity = '1';
+          nextPage.style.transform = 'translateY(0)';
+        }
+        return;
+      }
+      
+      // Prevent transition animation if staying on the same page
+      if(currentActive.id === pageId) return;
+
+      currentActive.style.opacity = '0';
+      currentActive.style.transform = 'translateY(-20px)';
+      setTimeout(() => {
+        currentActive.classList.remove('active');
+        const nextPage = document.getElementById(pageId);
+        if(nextPage) {
+          nextPage.classList.add('active');
+          
+          // Trigger reflow
+          void nextPage.offsetWidth;
+          
+          // Only apply fade-in animation for home page elements if it's the first load or explicit transition
+          // For now, let's keep simple fade-in
+          nextPage.style.opacity = '1';
+          nextPage.style.transform = 'translateY(0)';
+          
+          // Handle Home Page Animations Reset
+          if (pageId === 'home-page') {
+             // Optional: Trigger re-animation of home elements if desired, 
+             // or remove 'animate-fade-in-up' class from static elements to stop re-flashing.
+             // Currently, the flash is caused by CSS animation re-triggering on display:block.
+             // We can remove the animation class after first run, or just let it be if user likes it.
+             // User asked why it flashes, implies they might not like it re-playing every time.
+             // Let's remove animation classes from Hero section once displayed.
+             
+             const animatedElements = nextPage.querySelectorAll('.animate-fade-in-up');
+             animatedElements.forEach(el => {
+                 // Removing the class stops the animation from re-playing on subsequent visits
+                 // But we need to make sure they are visible (opacity 1)
+                 el.style.opacity = '1';
+                 el.style.animation = 'none';
+             });
+          }
+        }
+      }, 300);
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('mobile-menu').classList.add('hidden');
+    }
+
+    // Mobile Menu
+    document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+      document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    // --- Chat Logic ---
+    async function sendChatMessage() {
+      const input = document.getElementById('ai-chat-input');
+      const msg = input.value.trim();
+      if(!msg) return;
+      
+      const container = document.getElementById('ai-chat-messages');
+      
+      // User Message
+      const userDiv = document.createElement('div');
+      userDiv.className = 'flex gap-3 flex-row-reverse animate-fade-in-up';
+      userDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-user text-xs text-slate-600"></i>
+        </div>
+        <div class="bg-blue-600 p-3 rounded-2xl rounded-tr-none shadow-md text-sm text-white">
+          ${msg.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        </div>
+      `;
+      container.appendChild(userDiv);
+      input.value = '';
+      container.scrollTop = container.scrollHeight;
+
+      // AI Loading State
+      const aiDiv = document.createElement('div');
+      aiDiv.className = 'flex gap-3 animate-fade-in-up';
+      aiDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm text-blue-600 flex-shrink-0">
+          <i class="fa-solid fa-robot text-xs"></i>
+        </div>
+        <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 text-sm text-slate-600">
+          <span class="inline-block w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+          <span class="inline-block w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+          <span class="inline-block w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+        </div>
+      `;
+      container.appendChild(aiDiv);
+      container.scrollTop = container.scrollHeight;
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: msg,
+            user: 'user_' + Math.random().toString(36).substr(2, 9) // Simple session ID
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        const answer = data.answer || "抱歉，我没有理解您的问题。";
+
+        // Update AI Message
+        aiDiv.innerHTML = `
+           <div class="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm text-blue-600 flex-shrink-0">
+            <i class="fa-solid fa-robot text-xs"></i>
+          </div>
+          <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 text-sm text-slate-600 leading-relaxed">
+            ${marked.parse(answer)}
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Chat Error:', error);
+        aiDiv.innerHTML = `
+           <div class="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm text-red-600 flex-shrink-0">
+            <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+          </div>
+          <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-red-100 text-sm text-red-600">
+            连接服务失败，请检查网络或稍后再试。
+          </div>
+        `;
+      }
+      
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    document.getElementById('ai-chat-input').addEventListener('keypress', (e) => {
+      if(e.key === 'Enter') sendChatMessage();
+    });
+
+  </script>
+</body>
+</html>

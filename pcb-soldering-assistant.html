@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCB焊接辅助 | SparkPilot</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- AR.js & Dependencies -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://ar-js-org.github.io/AR.js/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+              display: ['Space Grotesk', 'sans-serif'],
+            },
+            colors: {
+              primary: '#0F172A',
+            },
+            animation: {
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* --- Core Variables --- */
+      :root {
+        --hud-primary: #0ea5e9; /* Sky 500 */
+        --hud-accent: #f43f5e;  /* Rose 500 */
+        --hud-success: #10b981; /* Emerald 500 */
+        --hud-bg: rgba(15, 23, 42, 0.85); /* Slate 900 */
+        --hud-border: rgba(14, 165, 233, 0.3);
+      }
+
+      /* --- AR Container & Effects --- */
+      #ar-container {
+          position: fixed;
+          top: 0; left: 0; width: 100%; height: 100%;
+          z-index: 0;
+      }
+
+      /* Vignette Effect (Dark Corners) */
+      .vignette {
+          position: fixed; inset: 0; pointer-events: none; z-index: 1;
+          background: radial-gradient(circle at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+      }
+
+      /* Scanline & Grid Overlay */
+      .hud-overlay {
+          position: fixed; inset: 0; pointer-events: none; z-index: 2;
+          background-image: 
+              linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+          background-size: 40px 40px;
+      }
+      .scanline-bar {
+          width: 100%; height: 4px;
+          background: linear-gradient(90deg, transparent, var(--hud-primary), transparent);
+          opacity: 0.3;
+          position: absolute; top: 0; left: 0;
+          animation: scan-vertical 4s linear infinite;
+      }
+      @keyframes scan-vertical {
+          0% { top: -10%; opacity: 0; }
+          10% { opacity: 0.5; }
+          90% { opacity: 0.5; }
+          100% { top: 110%; opacity: 0; }
+      }
+
+      /* --- Glass / HUD Components --- */
+      .hud-card {
+          background: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid var(--hud-border);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+          position: relative;
+          overflow: hidden;
+      }
+      /* Tech Corners for HUD Cards */
+      .hud-card::before, .hud-card::after {
+          content: ''; position: absolute; width: 8px; height: 8px;
+          border-color: var(--hud-primary); border-style: solid;
+          transition: all 0.3s ease;
+      }
+      .hud-card::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+      .hud-card::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+      
+      .hud-card:hover::before, .hud-card:hover::after {
+          width: 100%; height: 100%; opacity: 0.1;
+      }
+
+      /* Step Item Styling */
+      .step-item {
+          position: relative;
+          padding: 1rem;
+          margin-bottom: 0.5rem;
+          border-left: 2px solid transparent;
+          background: rgba(255, 255, 255, 0.03);
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+      }
+      .step-item:hover {
+          background: rgba(255, 255, 255, 0.08);
+      }
+      .step-item.active {
+          background: linear-gradient(90deg, rgba(14, 165, 233, 0.1), transparent);
+          border-left-color: var(--hud-primary);
+      }
+      .step-item.completed .step-index {
+          background-color: var(--hud-success);
+          color: white; border-color: var(--hud-success);
+      }
+      .step-item.active .step-index {
+          background-color: var(--hud-primary);
+          color: white; border-color: var(--hud-primary);
+          box-shadow: 0 0 10px var(--hud-primary);
+      }
+      .step-index {
+          width: 1.75rem; height: 1.75rem;
+          border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 0.75rem; font-weight: bold;
+          color: rgba(255,255,255,0.6);
+          transition: all 0.3s ease;
+      }
+
+      /* Buttons */
+      .btn-tech {
+          position: relative;
+          display: flex; align-items: center; justify-content: center;
+          background: rgba(15, 23, 42, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.8);
+          transition: all 0.2s;
+          overflow: hidden;
+      }
+      .btn-tech:hover {
+          border-color: var(--hud-primary);
+          color: var(--hud-primary);
+          box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+          transform: translateY(-1px);
+      }
+      .btn-tech:active { transform: translateY(1px); }
+      
+      .btn-primary-tech {
+          background: var(--hud-primary);
+          color: white;
+          border: none;
+          box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+      }
+      .btn-primary-tech:hover {
+          background: #0284c7; /* Sky 600 */
+          box-shadow: 0 0 30px rgba(14, 165, 233, 0.6);
+      }
+
+      /* Animations */
+      @keyframes pulse-ring {
+          0% { transform: scale(0.8); opacity: 0.5; }
+          100% { transform: scale(1.3); opacity: 0; }
+      }
+      .recording-dot {
+          width: 8px; height: 8px; background: var(--hud-accent); border-radius: 50%;
+          box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+          animation: rec-pulse 2s infinite;
+      }
+      @keyframes rec-pulse {
+          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+          70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+      }
+
+      /* Scrollbar */
+      .custom-scroll::-webkit-scrollbar { width: 4px; }
+      .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+      .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+      .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body class="bg-slate-950 font-sans text-slate-100 overflow-hidden h-screen w-screen selection:bg-sky-500 selection:text-white">
+
+    <!-- FX Layers -->
+    <div class="vignette"></div>
+    <div class="hud-overlay">
+        <div class="scanline-bar"></div>
+    </div>
+
+    <!-- AR Scene -->
+    <a-scene id="ar-container" embedded arjs="debugUIEnabled: false; sourceType: webcam; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;">
+        <a-entity camera></a-entity>
+        
+        <!-- PCB Marker -->
+        <!-- Added Smoothing Parameters to reduce jitter/drift -->
+        <a-marker 
+            preset="hiro" 
+            id="pcb-marker"
+            smooth="true"
+            smoothCount="10"
+            smoothTolerance="0.01"
+            smoothThreshold="5">
+            
+            <!-- PCB Board Container (Rooted at Marker's Top-Right edge roughly) -->
+            <!-- Offset X by 0.6 (Marker radius 0.5 + gap) to place board to the right -->
+            <a-entity id="pcb-root" position="0.8 0 0">
+                
+                <!-- Wiring Diagram Overlay -->
+                <!-- Position and Scale will be auto-adjusted by JS based on image aspect ratio -->
+                <!-- Default placeholder: 4 units wide (approx 20cm if marker is 5cm) -->
+                <a-image 
+                    id="pcb-image"
+                    src="images/wiring-diagram.png" 
+                    rotation="-90 0 0" 
+                    scale="4 3 1" 
+                    opacity="0.9" 
+                    position="2 0.01 -1.5"
+                    class="clickable">
+                </a-image>
+                
+                <!-- Solder Points Group -->
+                <!-- Coordinates are now relative to the PCB Root (bottom-left of the board) -->
+                <!-- Note: Since Image is rotated -90 X, local Y+ maps to world Z- -->
+                <!-- We'll use a wrapper to simplify coordinate mapping if needed, but standard A-Frame coords work -->
+                <!-- Let's assume we map X to Board Width, and Z to Board Height (negative Z is up/in) -->
+                
+                <a-entity id="overlay-group" visible="true">
+                    <!-- Distributed points across the larger board (approx 4x3 area) -->
+                    <!-- Row 1 (Bottom) -->
+                    <a-sphere class="solder-point" id="point-1" position="0.5 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                    <a-sphere class="solder-point" id="point-2" position="2.0 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                    <a-sphere class="solder-point" id="point-3" position="3.5 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                    
+                    <!-- Row 2 (Top) -->
+                    <a-sphere class="solder-point" id="point-4" position="0.5 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                    <a-sphere class="solder-point" id="point-5" position="2.0 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                    <a-sphere class="solder-point" id="point-6" position="3.5 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+
+                    <!-- Connections -->
+                    <a-entity id="connection-1" visible="true">
+                        <a-entity class="connection-line" line="start: 0.5 0.05 -0.5; end: 2.0 0.05 -0.5; color: #0ea5e9; opacity: 0.5"></a-entity>
+                    </a-entity>
+                    <a-entity id="connection-2" visible="true">
+                         <a-entity class="connection-line" line="start: 2.0 0.05 -0.5; end: 3.5 0.05 -2.5; color: #0ea5e9; opacity: 0.5"></a-entity>
+                    </a-entity>
+                </a-entity>
+                
+                <!-- Guide Text (Floating above board center) -->
+                <a-text id="step-guide-3d" position="2 0.5 -1.5" rotation="-90 0 0" align="center" color="#00ff00" scale="2 2 2" value="Ready"></a-text>
+
+            </a-entity>
+        </a-marker>
+        
+        <!-- Loading / No Marker State -->
+        <a-entity id="no-marker" position="0 0 -1" scale="0.5 0.5 0.5" visible="false">
+            <a-text value="Searching for Marker..." align="center" color="#ffffff"></a-text>
+        </a-entity>
+    </a-scene>
+
+    <!-- UI Overlay -->
+    <div class="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- Header HUD -->
+        <div class="flex justify-between items-start pointer-events-auto">
+            <a href="index.html" onclick="cleanupAR(event)" class="btn-tech h-10 px-4 rounded-lg gap-2 group">
+                <i class="fa-solid fa-chevron-left text-xs group-hover:-translate-x-1 transition-transform"></i>
+                <span class="font-display font-bold text-sm tracking-wide">EXIT</span>
+            </a>
+            
+            <div class="hud-card px-4 py-2 rounded-lg flex items-center gap-4 text-xs font-mono">
+                <div class="flex items-center gap-2 text-sky-400">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                    <span>ONLINE</span>
+                </div>
+                <div class="w-px h-4 bg-slate-700"></div>
+                <div class="flex items-center gap-2">
+                    <span class="recording-dot"></span>
+                    <span class="text-rose-400">REC</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Status / Tooltip -->
+        <div id="info-tooltip" class="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 translate-y-4">
+            <div class="hud-card px-6 py-3 rounded-full flex items-center gap-3 border-sky-500/30">
+                <i class="fa-solid fa-circle-info text-sky-400 animate-pulse"></i>
+                <span id="tooltip-text" class="text-sm font-medium text-slate-200 tracking-wide">System Ready</span>
+            </div>
+        </div>
+
+        <!-- Bottom Controls & Panel -->
+        <div class="flex flex-col md:flex-row gap-6 items-end pointer-events-auto pb-4 md:pb-0">
+            
+            <!-- Left: Steps Panel (HUD Style) -->
+            <div class="w-full md:w-80 hud-card rounded-xl flex flex-col max-h-[35vh]">
+                <div class="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/50">
+                    <h2 class="font-display font-bold text-slate-200 flex items-center gap-2 text-sm uppercase tracking-wider">
+                        <i class="fa-solid fa-list-check text-sky-500"></i> Operations
+                    </h2>
+                    <span class="font-mono text-xs text-sky-400 bg-sky-900/20 px-2 py-1 rounded border border-sky-500/20">
+                        <span id="current-step-num">1</span>/<span id="total-steps">8</span>
+                    </span>
+                </div>
+                <div id="steps-list" class="overflow-y-auto p-2 space-y-1 custom-scroll flex-1">
+                    <!-- Steps injected by JS -->
+                </div>
+            </div>
+
+            <!-- Center/Right: Action Controls -->
+            <div class="flex-1 w-full flex justify-center md:justify-end gap-4">
+                
+                <!-- Main Nav -->
+                <div class="flex items-center gap-3">
+                    <button onclick="prevStep()" class="btn-tech w-12 h-12 rounded-full" title="Previous">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    
+                    <div class="hud-card p-1.5 rounded-full flex gap-2 mx-2">
+                        <button onclick="toggleConnections()" id="btn-conn" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-all" title="Toggle Wires">
+                            <i class="fa-solid fa-diagram-project"></i>
+                        </button>
+                        <button onclick="toggleDetection()" id="btn-detect" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-all relative" title="AI Vision">
+                            <i class="fa-solid fa-eye"></i>
+                            <span class="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full hidden shadow-[0_0_8px_rgba(244,63,94,0.8)]" id="detect-badge"></span>
+                        </button>
+                        <button onclick="resetSteps()" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-all" title="Reset">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+
+                    <button onclick="nextStep()" class="btn-tech btn-primary-tech w-14 h-14 rounded-full text-lg" title="Next">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Video for Tensor Flow -->
+    <video id="detection-video" class="fixed -top-[9999px] -left-[9999px]" width="320" height="240" autoplay muted></video>
+    <canvas id="detection-canvas" class="fixed top-4 right-4 w-32 h-24 rounded-lg border-2 border-white/50 shadow-lg hidden"></canvas>
+
+    <script>
+        // --- Data ---
+        // Simplified steps with Mirroring logic (isMirrored: true for Solder Side)
+        const solderingSteps = [
+            { 
+                id: 1, 
+                title: "准备工作", 
+                description: "核对所有元器件，确保电烙铁温度适宜 (约350°C)", 
+                isMirrored: false,
+                targetPoint: null 
+            },
+            { 
+                id: 2, 
+                title: "插放元器件", 
+                description: "在正面 (Component Side) 按照图纸插入电阻、电容等低矮元件", 
+                isMirrored: false,
+                targetPoint: ["point-1", "point-2", "point-3"] // Highlight generic areas
+            },
+            { 
+                id: 3, 
+                title: "翻转电路板", 
+                description: "用耐热胶带或海绵固定元件，将电路板翻转至背面 (Solder Side)", 
+                isMirrored: true, // Transition to back
+                targetPoint: null 
+            },
+            { 
+                id: 4, 
+                title: "焊接引脚", 
+                description: "在背面焊接所有引脚。注意焊点应呈圆锥状，避免虚焊", 
+                isMirrored: true,
+                targetPoint: ["point-4", "point-5", "point-6"],
+                targetConnection: "connection-1"
+            },
+            { 
+                id: 5, 
+                title: "剪切引脚", 
+                description: "使用斜口钳剪去多余的引脚线头，保留约 1-2mm", 
+                isMirrored: true,
+                targetPoint: null,
+                targetConnection: "connection-2"
+            },
+            { 
+                id: 6, 
+                title: "检查与完成", 
+                description: "检查是否有短路或漏焊。恭喜！您的 PCB 焊接已完成", 
+                isMirrored: true,
+                targetPoint: null 
+            }
+        ];
+
+        // --- State ---
+        let currentStep = 0;
+        let connectionsVisible = true;
+        let detectionActive = false;
+        
+        // Store calculated board dimensions for dynamic mirroring
+        let boardDims = { width: 5, height: 3.75 }; // Default fallback
+
+        
+        // --- Elements ---
+        const stepsListEl = document.getElementById('steps-list');
+        const currentStepNumEl = document.getElementById('current-step-num');
+        const totalStepsEl = document.getElementById('total-steps');
+        const tooltipEl = document.getElementById('info-tooltip');
+        const tooltipTextEl = document.getElementById('tooltip-text');
+        const sceneEl = document.querySelector('a-scene');
+        const markerEl = document.querySelector('a-marker');
+        const guideTextEl = document.getElementById('step-guide-3d');
+
+        // --- Init ---
+        function init() {
+            totalStepsEl.textContent = solderingSteps.length;
+            renderSteps();
+            updateStep(0);
+            
+            // Auto Scale Image
+            adjustBoardLayout();
+
+            // Marker Events
+            markerEl.addEventListener('markerFound', () => {
+                showTooltip("PCB Marker Found - Calibrating...", "success");
+                updateARVisuals();
+            });
+            markerEl.addEventListener('markerLost', () => {
+                showTooltip("Searching for Marker...", "warning");
+            });
+        }
+
+        function adjustBoardLayout() {
+            const pcbImageEl = document.getElementById('pcb-image');
+            const pcbSrc = pcbImageEl.getAttribute('src');
+            
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                const aspect = tempImg.width / tempImg.height;
+                const PCB_WIDTH = 5; // Target width relative to Marker (5x larger)
+                const PCB_HEIGHT = PCB_WIDTH / aspect;
+                
+                // Save to Global State for Mirroring Logic
+                boardDims = { width: PCB_WIDTH, height: PCB_HEIGHT };
+
+                console.log(`Image Loaded: ${tempImg.width}x${tempImg.height}, Aspect: ${aspect.toFixed(2)}`);
+                console.log(`Setting AR Scale: ${PCB_WIDTH} ${PCB_HEIGHT} 1`);
+
+                // 1. Update Image Scale & Position
+                // Position logic: Center of image needs to be at (Width/2, 0, -Height/2) relative to pcb-root
+                // pcb-root is already offset from marker.
+                pcbImageEl.setAttribute('scale', `${PCB_WIDTH} ${PCB_HEIGHT} 1`);
+                pcbImageEl.setAttribute('position', `${PCB_WIDTH / 2} 0.01 ${-PCB_HEIGHT / 2}`);
+                
+                // 2. Update Guide Text Position (Center of board)
+                const guideText = document.getElementById('step-guide-3d');
+                if(guideText) {
+                    guideText.setAttribute('position', `${PCB_WIDTH / 2} 0.5 ${-PCB_HEIGHT / 2}`);
+                }
+                
+                // Note: Solder points are currently hardcoded for demo. 
+                // In a real app, you'd map normalized coordinates (0-1) to (PCB_WIDTH, PCB_HEIGHT).
+                showTooltip(`Board Layout Adjusted (${aspect.toFixed(2)} ratio)`);
+            }
+            tempImg.onerror = function() {
+                console.error("Failed to load wiring diagram for sizing.");
+                showTooltip("Error loading PCB Image", "error");
+            }
+            tempImg.src = pcbSrc;
+        }
+
+        // --- Core Logic ---
+        function renderSteps() {
+            stepsListEl.innerHTML = '';
+            solderingSteps.forEach((step, index) => {
+                const div = document.createElement('div');
+                div.className = `step-item group ${index === currentStep ? 'active' : ''}`;
+                div.onclick = () => updateStep(index);
+                div.innerHTML = `
+                    <div class="step-index">${step.id}</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">${step.title}</div>
+                        <div class="text-xs text-slate-400 group-hover:text-slate-300 line-clamp-1">${step.description}</div>
+                    </div>
+                `;
+                stepsListEl.appendChild(div);
+            });
+        }
+
+        function updateStep(index) {
+            if(index < 0 || index >= solderingSteps.length) return;
+            currentStep = index;
+            currentStepNumEl.textContent = currentStep + 1;
+            
+            // Update List UI
+            const items = stepsListEl.children;
+            for(let i=0; i<items.length; i++) {
+                items[i].className = `step-item group ${i === currentStep ? 'active' : ''} ${i < currentStep ? 'completed' : ''}`;
+                // Auto scroll
+                if(i === currentStep) items[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Update AR
+            updateARVisuals();
+            
+            // Tooltip
+            showTooltip(solderingSteps[currentStep].description);
+        }
+
+        function updateARVisuals() {
+            const step = solderingSteps[currentStep];
+            if(guideTextEl) guideTextEl.setAttribute('value', step.title);
+
+            // 1. Handle Mirroring (Flip Image Scale X)
+            const pcbImage = document.getElementById('pcb-image');
+            if(pcbImage) {
+                // If mirrored, X scale is negative.
+                // Current rotation -90 0 0:
+                // X is Horizontal (Board Width). Y is Depth (Board Height).
+                // Flipping X mirrors Left/Right which is correct for flipping a board horizontally.
+                const targetScaleX = step.isMirrored ? -boardDims.width : boardDims.width;
+                pcbImage.setAttribute('scale', `${targetScaleX} ${boardDims.height} 1`);
+            }
+            
+            // Update Text to indicate side
+            if(step.isMirrored) {
+                showTooltip("Back Side (Solder View) - Image Mirrored");
+            } else {
+                // Only show if not just initializing
+                if(currentStep > 0) showTooltip("Front Side (Component View)");
+            }
+
+            // Reset Colors
+            document.querySelectorAll('.solder-point').forEach(el => {
+                el.setAttribute('material', 'color: #f43f5e; opacity: 0.5'); // Rose-500
+                el.setAttribute('radius', '0.015');
+            });
+            document.querySelectorAll('.connection-line').forEach(el => {
+                el.setAttribute('line', 'color: #0ea5e9; opacity: 0.3'); // Sky-500
+            });
+
+            // Highlight Target Points
+            if(step.targetPoint) {
+                step.targetPoint.forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) {
+                        el.setAttribute('material', 'color: #10b981; opacity: 1'); // Emerald-500
+                        el.setAttribute('radius', '0.025'); 
+                    }
+                });
+            }
+
+            // Highlight Connections
+            if(step.targetConnection) {
+                const conn = document.getElementById(step.targetConnection);
+                const line = conn?.querySelector('.connection-line');
+                if(line) {
+                    line.setAttribute('line', 'color: #10b981; opacity: 1; thickness: 0.01');
+                }
+            }
+        }
+
+        function nextStep() { updateStep(currentStep + 1); }
+        function prevStep() { updateStep(currentStep - 1); }
+        function resetSteps() { updateStep(0); }
+
+        function toggleConnections() {
+            connectionsVisible = !connectionsVisible;
+            document.querySelectorAll('.connection-line').forEach(el => {
+                el.setAttribute('visible', connectionsVisible);
+            });
+            const btn = document.getElementById('btn-conn');
+            // Update for Dark Mode / HUD
+            if (connectionsVisible) {
+                btn.classList.add('text-sky-400', 'bg-white/10');
+                btn.classList.remove('text-slate-400');
+            } else {
+                btn.classList.remove('text-sky-400', 'bg-white/10');
+                btn.classList.add('text-slate-400');
+            }
+            showTooltip(connectionsVisible ? "Wires Visible" : "Wires Hidden");
+        }
+
+        function toggleDetection() {
+            detectionActive = !detectionActive;
+            const btn = document.getElementById('btn-detect');
+            const badge = document.getElementById('detect-badge');
+            
+            if(detectionActive) {
+                btn.classList.add('text-sky-400', 'bg-white/10');
+                btn.classList.remove('text-slate-400');
+                badge.classList.remove('hidden');
+                document.getElementById('detection-canvas').classList.remove('hidden');
+                showTooltip("AI Vision Active");
+                // Start TF.js logic here
+            } else {
+                btn.classList.remove('text-sky-400', 'bg-white/10');
+                btn.classList.add('text-slate-400');
+                badge.classList.add('hidden');
+                document.getElementById('detection-canvas').classList.add('hidden');
+                showTooltip("AI Vision Paused");
+            }
+        }
+
+        // --- Utilities ---
+        let tooltipTimer;
+        function showTooltip(text, type = 'info') {
+            tooltipTextEl.textContent = text;
+            tooltipEl.classList.remove('opacity-0', 'translate-y-4');
+            
+            clearTimeout(tooltipTimer);
+            tooltipTimer = setTimeout(() => {
+                tooltipEl.classList.add('opacity-0', 'translate-y-4');
+            }, 3000);
+        }
+
+        // --- Cleanup AR ---
+        function cleanupAR(event) {
+            // Prevent default navigation initially
+            if (event) event.preventDefault();
+            
+            showTooltip("正在关闭 AR 引擎...");
+
+            // 1. Stop A-Frame Scene
+            const scene = document.querySelector('a-scene');
+            if (scene && scene.renderer) {
+                scene.renderer.dispose();
+            }
+
+            // 2. Stop Camera Stream
+            const videos = document.querySelectorAll('video');
+            videos.forEach(video => {
+                if (video.srcObject) {
+                    const stream = video.srcObject;
+                    const tracks = stream.getTracks();
+                    tracks.forEach(track => track.stop());
+                    video.srcObject = null;
+                }
+                video.pause();
+                video.remove();
+            });
+
+            // 3. Remove AR.js specific elements
+            const arVideo = document.getElementById('arjs-video');
+            if(arVideo) arVideo.remove();
+
+            // 4. Navigate back
+            setTimeout(() => {
+                window.location.href = "index.html";
+            }, 500);
+        }
+
+        // Start
+        window.addEventListener('load', init);
+
+    </script>
+</body>
+</html>
