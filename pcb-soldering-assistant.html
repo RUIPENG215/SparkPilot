@@ -95,6 +95,7 @@
           content: ''; position: absolute; width: 8px; height: 8px;
           border-color: var(--hud-primary); border-style: solid;
           transition: all 0.3s ease;
+          pointer-events: none; /* Fix: Prevent covering corners from blocking clicks */
       }
       .hud-card::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
       .hud-card::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
@@ -200,85 +201,24 @@
         <div class="scanline-bar"></div>
     </div>
 
-    <!-- AR Scene -->
-    <a-scene id="ar-container" embedded arjs="debugUIEnabled: false; sourceType: webcam; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;">
-        <a-entity camera></a-entity>
-        
-        <!-- PCB Marker -->
-        <!-- Added Smoothing Parameters to reduce jitter/drift -->
-        <a-marker 
-            preset="hiro" 
-            id="pcb-marker"
-            smooth="true"
-            smoothCount="10"
-            smoothTolerance="0.01"
-            smoothThreshold="5">
-            
-            <!-- PCB Board Container (Rooted at Marker's Top-Right edge roughly) -->
-            <!-- Offset X by 0.6 (Marker radius 0.5 + gap) to place board to the right -->
-            <a-entity id="pcb-root" position="0.8 0 0">
-                
-                <!-- Wiring Diagram Overlay -->
-                <!-- Position and Scale will be auto-adjusted by JS based on image aspect ratio -->
-                <!-- Default placeholder: 4 units wide (approx 20cm if marker is 5cm) -->
-                <a-image 
-                    id="pcb-image"
-                    src="images/wiring-diagram.png" 
-                    rotation="-90 0 0" 
-                    scale="4 3 1" 
-                    opacity="0.9" 
-                    position="2 0.01 -1.5"
-                    class="clickable">
-                </a-image>
-                
-                <!-- Solder Points Group -->
-                <!-- Coordinates are now relative to the PCB Root (bottom-left of the board) -->
-                <!-- Note: Since Image is rotated -90 X, local Y+ maps to world Z- -->
-                <!-- We'll use a wrapper to simplify coordinate mapping if needed, but standard A-Frame coords work -->
-                <!-- Let's assume we map X to Board Width, and Z to Board Height (negative Z is up/in) -->
-                
-                <a-entity id="overlay-group" visible="true">
-                    <!-- Distributed points across the larger board (approx 4x3 area) -->
-                    <!-- Row 1 (Bottom) -->
-                    <a-sphere class="solder-point" id="point-1" position="0.5 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
-                    <a-sphere class="solder-point" id="point-2" position="2.0 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
-                    <a-sphere class="solder-point" id="point-3" position="3.5 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
-                    
-                    <!-- Row 2 (Top) -->
-                    <a-sphere class="solder-point" id="point-4" position="0.5 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
-                    <a-sphere class="solder-point" id="point-5" position="2.0 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
-                    <a-sphere class="solder-point" id="point-6" position="3.5 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
-
-                    <!-- Connections -->
-                    <a-entity id="connection-1" visible="true">
-                        <a-entity class="connection-line" line="start: 0.5 0.05 -0.5; end: 2.0 0.05 -0.5; color: #0ea5e9; opacity: 0.5"></a-entity>
-                    </a-entity>
-                    <a-entity id="connection-2" visible="true">
-                         <a-entity class="connection-line" line="start: 2.0 0.05 -0.5; end: 3.5 0.05 -2.5; color: #0ea5e9; opacity: 0.5"></a-entity>
-                    </a-entity>
-                </a-entity>
-                
-                <!-- Guide Text (Floating above board center) -->
-                <a-text id="step-guide-3d" position="2 0.5 -1.5" rotation="-90 0 0" align="center" color="#00ff00" scale="2 2 2" value="Ready"></a-text>
-
-            </a-entity>
-        </a-marker>
-        
-        <!-- Loading / No Marker State -->
-        <a-entity id="no-marker" position="0 0 -1" scale="0.5 0.5 0.5" visible="false">
-            <a-text value="Searching for Marker..." align="center" color="#ffffff"></a-text>
-        </a-entity>
-    </a-scene>
+    <!-- AR Scene Container (Dynamically Injected) -->
+    <div id="scene-wrapper"></div>
 
     <!-- UI Overlay -->
-    <div class="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 md:p-6">
+    <div class="fixed inset-0 z-20 flex flex-col justify-between p-4 md:p-6 pointer-events-none">
         
         <!-- Header HUD -->
         <div class="flex justify-between items-start pointer-events-auto">
-            <a href="index.html" onclick="cleanupAR(event)" class="btn-tech h-10 px-4 rounded-lg gap-2 group">
-                <i class="fa-solid fa-chevron-left text-xs group-hover:-translate-x-1 transition-transform"></i>
-                <span class="font-display font-bold text-sm tracking-wide">EXIT</span>
-            </a>
+            <div class="flex gap-2">
+                <a href="index.html" onclick="cleanupAR(event)" class="btn-tech h-10 px-4 rounded-lg gap-2 group">
+                    <i class="fa-solid fa-chevron-left text-xs group-hover:-translate-x-1 transition-transform"></i>
+                    <span class="font-display font-bold text-sm tracking-wide">EXIT</span>
+                </a>
+                <button onclick="toggleSettings()" class="btn-tech h-10 px-4 rounded-lg gap-2 group hover:text-sky-400">
+                    <i class="fa-solid fa-gear text-xs group-hover:rotate-90 transition-transform duration-500"></i>
+                    <span class="font-display font-bold text-sm tracking-wide">CAM</span>
+                </button>
+            </div>
             
             <div class="hud-card px-4 py-2 rounded-lg flex items-center gap-4 text-xs font-mono">
                 <div class="flex items-center gap-2 text-sky-400">
@@ -292,6 +232,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- Settings Modal (Camera Selection) -->
+        <!-- Moved to body level to avoid pointer-events issues -->
 
         <!-- Center Status / Tooltip -->
         <div id="info-tooltip" class="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 translate-y-4">
@@ -352,6 +295,38 @@
     <!-- Hidden Video for Tensor Flow -->
     <video id="detection-video" class="fixed -top-[9999px] -left-[9999px]" width="320" height="240" autoplay muted></video>
     <canvas id="detection-canvas" class="fixed top-4 right-4 w-32 h-24 rounded-lg border-2 border-white/50 shadow-lg hidden"></canvas>
+
+    <!-- Settings Modal (Camera Selection) -->
+    <div id="settings-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="hud-card w-full max-w-md p-6 rounded-2xl m-4 pointer-events-none transform scale-95 transition-transform duration-300" id="settings-panel">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-4">
+                <h2 class="text-xl font-display font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-camera text-sky-500"></i> Camera Source
+                </h2>
+                <button onclick="toggleSettings()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider">Select Video Input</label>
+                    <select id="camera-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-sky-500 transition-colors appearance-none">
+                        <option value="">Loading devices...</option>
+                    </select>
+                </div>
+                
+                <div class="bg-sky-900/20 border border-sky-500/20 p-4 rounded-lg text-xs text-sky-300 leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    To use your phone as a camera: Install <b>DroidCam</b> or <b>Iriun Webcam</b> app on both your phone and PC. Select it from the list above.
+                </div>
+
+                <button onclick="applyCameraSettings()" class="w-full btn-primary-tech py-3 rounded-lg font-bold text-sm tracking-wide mt-2">
+                    APPLY & RELOAD
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- Data ---
@@ -418,27 +393,163 @@
         const totalStepsEl = document.getElementById('total-steps');
         const tooltipEl = document.getElementById('info-tooltip');
         const tooltipTextEl = document.getElementById('tooltip-text');
-        const sceneEl = document.querySelector('a-scene');
-        const markerEl = document.querySelector('a-marker');
-        const guideTextEl = document.getElementById('step-guide-3d');
+        
+        // Dynamically fetched elements
+        let sceneEl, markerEl, guideTextEl;
 
         // --- Init ---
         function init() {
+            // 1. Initialize AR Scene with dynamic config
+            initARScene();
+
+            // 2. Init Logic
             totalStepsEl.textContent = solderingSteps.length;
             renderSteps();
             updateStep(0);
             
             // Auto Scale Image
             adjustBoardLayout();
+        }
 
-            // Marker Events
+        // --- Dynamic AR Scene Construction ---
+        function initARScene() {
+            const params = new URLSearchParams(window.location.search);
+            const deviceId = params.get('deviceId');
+            
+            let videoParams = "";
+            if(deviceId) {
+                console.log("Using specific deviceId:", deviceId);
+                videoParams = `videoParameters: { deviceId: '${deviceId}' };`;
+            }
+
+            const sceneHTML = `
+            <a-scene id="ar-container" embedded arjs="debugUIEnabled: false; sourceType: webcam; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720; ${videoParams}">
+                <a-entity camera></a-entity>
+                
+                <a-marker 
+                    preset="hiro" 
+                    id="pcb-marker"
+                    smooth="true"
+                    smoothCount="10"
+                    smoothTolerance="0.01"
+                    smoothThreshold="5">
+                    
+                    <a-entity id="pcb-root" position="0.8 0 0">
+                        <a-image 
+                            id="pcb-image"
+                            src="images/wiring-diagram.png" 
+                            rotation="-90 0 0" 
+                            scale="4 3 1" 
+                            opacity="0.9" 
+                            position="2 0.01 -1.5"
+                            class="clickable">
+                        </a-image>
+                        
+                        <a-entity id="overlay-group" visible="true">
+                            <!-- Row 1 -->
+                            <a-sphere class="solder-point" id="point-1" position="0.5 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                            <a-sphere class="solder-point" id="point-2" position="2.0 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                            <a-sphere class="solder-point" id="point-3" position="3.5 0.05 -0.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                            <!-- Row 2 -->
+                            <a-sphere class="solder-point" id="point-4" position="0.5 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                            <a-sphere class="solder-point" id="point-5" position="2.0 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+                            <a-sphere class="solder-point" id="point-6" position="3.5 0.05 -2.5" radius="0.04" material="color: #f43f5e; opacity: 0.8"></a-sphere>
+
+                            <a-entity id="connection-1" visible="true">
+                                <a-entity class="connection-line" line="start: 0.5 0.05 -0.5; end: 2.0 0.05 -0.5; color: #0ea5e9; opacity: 0.5"></a-entity>
+                            </a-entity>
+                            <a-entity id="connection-2" visible="true">
+                                <a-entity class="connection-line" line="start: 2.0 0.05 -0.5; end: 3.5 0.05 -2.5; color: #0ea5e9; opacity: 0.5"></a-entity>
+                            </a-entity>
+                        </a-entity>
+                        
+                        <a-text id="step-guide-3d" position="2 0.5 -1.5" rotation="-90 0 0" align="center" color="#00ff00" scale="2 2 2" value="Ready"></a-text>
+                    </a-entity>
+                </a-marker>
+                
+                <a-entity id="no-marker" position="0 0 -1" scale="0.5 0.5 0.5" visible="false">
+                    <a-text value="Searching for Marker..." align="center" color="#ffffff"></a-text>
+                </a-entity>
+            </a-scene>
+            `;
+
+            document.getElementById('scene-wrapper').innerHTML = sceneHTML;
+
+            // Re-fetch elements after injection
+            sceneEl = document.querySelector('a-scene');
+            markerEl = document.querySelector('a-marker');
+            guideTextEl = document.getElementById('step-guide-3d');
+            
+            // Re-bind Marker Events
             markerEl.addEventListener('markerFound', () => {
-                showTooltip("PCB Marker Found - Calibrating...", "success");
+                showTooltip("PCB Marker Found", "success");
                 updateARVisuals();
             });
             markerEl.addEventListener('markerLost', () => {
                 showTooltip("Searching for Marker...", "warning");
             });
+        }
+
+        // --- Settings / Camera Logic ---
+        function toggleSettings() {
+            const modal = document.getElementById('settings-modal');
+            const panel = document.getElementById('settings-panel');
+            
+            if (modal.classList.contains('opacity-0')) {
+                // Open
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.classList.add('pointer-events-auto'); // Enable interactions
+                panel.classList.remove('scale-95', 'pointer-events-none');
+                panel.classList.add('scale-100', 'pointer-events-auto');
+                loadCameras();
+            } else {
+                // Close
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                modal.classList.remove('pointer-events-auto');
+                panel.classList.remove('scale-100', 'pointer-events-auto');
+                panel.classList.add('scale-95', 'pointer-events-none');
+            }
+        }
+
+        async function loadCameras() {
+            const select = document.getElementById('camera-select');
+            select.innerHTML = '<option value="">Scanning devices...</option>';
+            
+            try {
+                // Request permission first to get labels
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                select.innerHTML = '';
+                const currentId = new URLSearchParams(window.location.search).get('deviceId');
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    if (device.deviceId === currentId) option.selected = true;
+                    select.appendChild(option);
+                });
+
+                if (videoDevices.length === 0) {
+                    select.innerHTML = '<option value="">No cameras found</option>';
+                }
+            } catch (err) {
+                console.error(err);
+                select.innerHTML = '<option value="">Permission denied</option>';
+            }
+        }
+
+        function applyCameraSettings() {
+            const select = document.getElementById('camera-select');
+            const deviceId = select.value;
+            
+            if (deviceId) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('deviceId', deviceId);
+                window.location.href = url.toString();
+            }
         }
 
         function adjustBoardLayout() {

@@ -559,7 +559,7 @@
                   <div class="text-[10px] text-slate-500 font-mono">LIVE PREVIEW</div>
                 </div>
               </div>
-              <div class="bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg pointer-events-auto text-white text-sm cursor-pointer hover:bg-slate-800 transition-colors border border-white/10">
+              <div onclick="toggleSettings()" class="bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg pointer-events-auto text-white text-sm cursor-pointer hover:bg-slate-800 transition-colors border border-white/10">
                 <i class="fa-solid fa-gear mr-2"></i>设置
               </div>
             </div>
@@ -579,9 +579,41 @@
               <p class="text-slate-400 mb-8 max-w-md text-center">
                 请确保环境光线充足，并将 PCB 板置于桌面中央。AI Agent 将自动识别板载标记。
               </p>
-              <button onclick="window.location.href='pcb-soldering-assistant.html'" class="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.5)] hover:shadow-[0_0_50px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-1 flex items-center gap-2">
+              <button onclick="startARWithCamera()" class="relative z-30 px-8 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.5)] hover:shadow-[0_0_50px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-1 flex items-center gap-2">
                 <i class="fa-solid fa-power-off"></i> 启动 AR 引擎
               </button>
+            </div>
+
+            <!-- Settings Modal (Camera Selection) -->
+            <div id="settings-modal" class="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+                <div class="bg-slate-900 border border-slate-700 w-full max-w-sm p-6 rounded-2xl m-4 pointer-events-none transform scale-95 transition-transform duration-300" id="settings-panel">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-4">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-camera text-blue-500"></i> 摄像头设置
+                        </h2>
+                        <button onclick="toggleSettings()" class="text-slate-400 hover:text-white">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2 uppercase">选择视频输入源</label>
+                            <select id="camera-select" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none">
+                                <option value="">正在加载设备...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bg-blue-900/20 border border-blue-500/20 p-4 rounded-lg text-[10px] text-blue-300 leading-relaxed">
+                            <i class="fa-solid fa-circle-info mr-1"></i>
+                            想使用手机摄像头？请在电脑和手机上安装 <b>DroidCam</b> 或 <b>Iriun Webcam</b> 并在上方选择。
+                        </div>
+
+                        <button onclick="saveCameraSettings()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold text-sm transition-all">
+                            保存设置
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Corner Markers -->
@@ -882,6 +914,77 @@
       }
       
       container.scrollTop = container.scrollHeight;
+    }
+    
+    // --- Settings / Camera Logic ---
+    let selectedDeviceId = localStorage.getItem('sparkpilot_camera_id') || '';
+
+    function toggleSettings() {
+        const modal = document.getElementById('settings-modal');
+        const panel = document.getElementById('settings-panel');
+        
+        if (modal.classList.contains('opacity-0')) {
+            // Open
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('pointer-events-auto');
+            panel.classList.remove('scale-95', 'pointer-events-none');
+            panel.classList.add('scale-100', 'pointer-events-auto');
+            loadCameras();
+        } else {
+            // Close
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.classList.remove('pointer-events-auto');
+            panel.classList.remove('scale-100', 'pointer-events-auto');
+            panel.classList.add('scale-95', 'pointer-events-none');
+        }
+    }
+
+    async function loadCameras() {
+        const select = document.getElementById('camera-select');
+        select.innerHTML = '<option value="">扫描设备中...</option>';
+        
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            select.innerHTML = '';
+            
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `摄像头 ${index + 1}`;
+                if (device.deviceId === selectedDeviceId) option.selected = true;
+                select.appendChild(option);
+            });
+
+            if (videoDevices.length === 0) {
+                select.innerHTML = '<option value="">未检测到摄像头</option>';
+            }
+        } catch (err) {
+            console.error(err);
+            select.innerHTML = '<option value="">无权限访问</option>';
+        }
+    }
+
+    function saveCameraSettings() {
+        const select = document.getElementById('camera-select');
+        selectedDeviceId = select.value;
+        if(selectedDeviceId) {
+            localStorage.setItem('sparkpilot_camera_id', selectedDeviceId);
+            toggleSettings(); // Close modal
+            
+            // Show toast feedback (Simple alert for now)
+            // alert("设置已保存！点击“启动 AR 引擎”即可生效。");
+        }
+    }
+
+    function startARWithCamera() {
+        let url = 'pcb-soldering-assistant.html';
+        if (selectedDeviceId) {
+            url += `?deviceId=${selectedDeviceId}`;
+        }
+        window.location.href = url;
     }
     
     document.getElementById('ai-chat-input').addEventListener('keypress', (e) => {
