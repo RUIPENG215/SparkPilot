@@ -218,6 +218,11 @@
                     <i class="fa-solid fa-gear text-xs group-hover:rotate-90 transition-transform duration-500"></i>
                     <span class="font-display font-bold text-sm tracking-wide">CAM</span>
                 </button>
+                <button onclick="document.getElementById('file-upload').click()" class="btn-tech h-10 px-4 rounded-lg gap-2 group hover:text-sky-400">
+                    <i class="fa-solid fa-upload text-xs group-hover:-translate-y-0.5 transition-transform duration-500"></i>
+                    <span class="font-display font-bold text-sm tracking-wide">FILE</span>
+                </button>
+                <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
             </div>
             
             <div class="hud-card px-4 py-2 rounded-lg flex items-center gap-4 text-xs font-mono">
@@ -549,6 +554,34 @@
                 const url = new URL(window.location.href);
                 url.searchParams.set('deviceId', deviceId);
                 window.location.href = url.toString();
+            }
+        }
+
+        function handleFileUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                
+                showTooltip("Loading custom board design...", "info");
+                
+                reader.onload = function(e) {
+                    const dataURL = e.target.result;
+                    
+                    // Update AR Image Source
+                    const pcbImage = document.getElementById('pcb-image');
+                    if(pcbImage) {
+                        pcbImage.setAttribute('src', dataURL);
+                        
+                        // Recalculate Layout
+                        // Small delay to ensure DOM update (though setAttribute is sync, A-Frame might need a tick)
+                        setTimeout(() => {
+                            adjustBoardLayout();
+                            showTooltip("Custom Board Loaded", "success");
+                        }, 100);
+                    }
+                };
+                
+                reader.readAsDataURL(file);
             }
         }
 
